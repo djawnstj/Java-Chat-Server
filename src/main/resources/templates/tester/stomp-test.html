@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>JunStomp</title>
+</head>
+<body>
+<div>
+    <h3>CONNECT</h3>
+    <label for="baseUrlInput"> BASE URL </label><input id="baseUrlInput" type="text">
+    <label for="subscriptionUrlInput"> SUBSCRIPTION URL </label><input id="subscriptionUrlInput" type="text">
+    <button id="urlConnectButton">connect</button>
+</div>
+
+<div>
+    <h3>INPUT</h3>
+    <form id="inputForm">
+        <label for="destinationUrlInput"> DESTINATION URL </label><input id="destinationUrlInput" type="text">
+        <br>
+        <br>
+        <label>
+            <textarea name="messageInput" placeholder="message"></textarea>
+        </label>
+        <button type="submit">SEND</button>
+    </form>
+</div>
+
+<div>
+    <h3>MESSAGES</h3>
+    <div id="messagesBox"></div>
+</div>
+
+<div>
+    <h3>HINT</h3>
+    <p>BASE URL 은 연결할 서버의 웹소켓 주소 입니다. ws 프로토콜로 스프링 서버의 WebSocketMessageBrokerConfigurer 에서 StompEndpointRegistry 에 추가한 endPoint 까지 입력하시면 됩니다. </p>
+    <p>예) ws:localhost:8080/chat</p>
+    <br>
+    <p>SUBSCRIPTION URL 은 메시지를 수신 받을 URL 을 입력하시면 됩니다. 스프링 서버의 WebSocketMessageBrokerConfigurer 에서 broker 로 설정 한 url 과 컨트롤러에서 SimpMessagingTemplate 의 convertAndSend 메서드 첫번째 파라미터 까지 입력하시면 됩니다. </p>
+    <p>예) /sub/chat/1</p>
+    <br>
+    <p>DESTINATION URL 은 메시지를 발신 할 URL 을 입력하시면 됩니다. 스프링 서버의 WebSocketMessageBrokerConfigurer 에서 setApplicationDestinationPrefixes 로 설정한 url 과 컨트롤러에서 @MessageMapping 으로 매핑한 url 까지 입력하시면 됩니다. </p>
+    <p>예) /pub/message</p>
+    <br>
+    <p>MESSAGES 는 수신 받은 메시지를 차례대로 보여줍니다. </p>
+    <br>
+</div>
+
+<script th:src="@{/js/stomp.js}"></script>
+<script>
+    const initView = () => {
+        document.addEventListener("DOMContentLoaded", () => {
+            initStompConnect();
+        });
+    };
+
+    const initStompConnect = () => {
+        const connectButton = document.getElementById("urlConnectButton");
+        const baseUrlInput = document.getElementById("baseUrlInput");
+        const subscriptionUrlInput = document.getElementById("subscriptionUrlInput");
+
+        connectButton.addEventListener("click", () => {
+            console.log("ws url: ", baseUrlInput.value.trim());
+
+            const ws = new WebSocket(baseUrlInput.value.trim());
+
+            const stompClient = Stomp.over(ws);
+            console.log("client: " + stompClient);
+
+            stompClient.connect({}, () => {
+                stompClient.subscribe(subscriptionUrlInput.value, (message) => {
+                    console.log("subscribe : \n" + message.body);
+                    const messagesBox = document.getElementById("messagesBox");
+                    messagesBox.append(message.body + "\n");
+                });
+            });
+
+            initInput(stompClient);
+        });
+    };
+
+    const initInput = (stompClient) => {
+        const inputForm = document.getElementById("inputForm");
+        inputForm.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const formData = new FormData(inputForm);
+            const messageInput = formData.get("messageInput");
+            const destinationUrlInput = document.getElementById("destinationUrlInput");
+            stompClient.send(destinationUrlInput.value, {}, messageInput.valueOf());
+        });
+    };
+
+    initView();
+</script>
+</body>
+</html>
